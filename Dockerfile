@@ -16,9 +16,14 @@ WORKDIR /go/src/github.com/buzzfeed/sso
 
 COPY cmd ./cmd
 COPY internal ./internal
-RUN cd cmd/sso-auth && go build -o /bin/sso-auth
-RUN cd cmd/sso-proxy && go build -o /bin/sso-proxy
-
+RUN cd cmd/sso-auth && go build -o /go/bin/sso-auth \
+&& cd ../sso-proxy && go build -o /go/bin/sso-proxy \
+&& cd /tmp \
+&& wget https://s3.amazonaws.com/psi-downloads/aws-sm-env.gz \
+&& wget https://s3.amazonaws.com/psi-downloads/aws-sm-env.sh \
+&& gunzip aws-sm-env.gz \
+&& chmod 755 aws-sm-env aws-sm-env.sh \
+&& mv aws-sm-env aws-sm-env.sh /go/bin/
 
 # =============================================================================
 # final stage
@@ -28,4 +33,4 @@ RUN cd cmd/sso-proxy && go build -o /bin/sso-proxy
 FROM debian:stable-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /sso
-COPY --from=build /bin/sso-* /bin/
+COPY --from=build /go/bin/* /bin/
