@@ -13,10 +13,11 @@ type Provider interface {
 	Redeem(string, string) (*SessionState, error)
 	ValidateGroup(string, []string) ([]string, bool, error)
 	UserGroups(string, []string) ([]string, error)
-	ValidateSessionState(*SessionState, []string) bool
+	ValidateEmail(string, []string) (bool, error)
+	ValidateSessionState(*SessionState, []string, []string) bool
 	GetSignInURL(redirectURL *url.URL, finalRedirect string) *url.URL
 	GetSignOutURL(redirectURL *url.URL) *url.URL
-	RefreshSession(*SessionState, []string) (bool, error)
+	RefreshSession(*SessionState, []string, []string) (bool, error)
 }
 
 // New returns a new sso Provider

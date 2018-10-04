@@ -135,12 +135,17 @@ func (p *ProviderData) UserGroups(string, []string) ([]string, error) {
 	return []string{}, nil
 }
 
+// ValidateEmail validates that the provided email exists in the configured provider email group(s).
+func (p *ProviderData) ValidateEmail(_ string, _ []string) (bool, error) {
+	return true, nil
+}
+
 // ValidateSessionState calls to validate the token given the session and groups
-func (p *ProviderData) ValidateSessionState(s *SessionState, groups []string) bool {
+func (p *ProviderData) ValidateSessionState(s *SessionState, groups []string, emails []string) bool {
 	return validateToken(p, s.AccessToken, nil)
 }
 
 // RefreshSession returns a boolean or error
-func (p *ProviderData) RefreshSession(s *SessionState, group []string) (bool, error) {
+func (p *ProviderData) RefreshSession(s *SessionState, group []string, emails []string) (bool, error) {
 	return false, nil
 }

@@ -224,9 +224,28 @@ func (p *SSOProvider) UserGroups(email string, groups []string) ([]string, error
 	return jsonResponse.Groups, nil
 }
 
-// RefreshSession takes a SessionState and allowedGroups and refreshes the session access token,
+// ValidateEmail checks if email in allowedEmails
+func (p *SSOProvider) ValidateEmail(email string, allowedEmails []string) (bool, error) {
+	logger := log.NewLogEntry()
+
+	logger.WithUser(email).WithAllowedEmails(allowedEmails).Info("validating emails")
+	if len(allowedEmails) == 0 {
+		return true, nil
+	}
+
+	allowed := false
+	for _, allowedEmail := range allowedEmails {
+		if email == allowedEmail {
+			allowed = true
+		}
+	}
+
+	return allowed, nil
+}
+
+// RefreshSession takes a SessionState, allowedGroups, and allowedEmails and refreshes the session access token,
 // returns `true` on success, and `false` on error
-func (p *SSOProvider) RefreshSession(s *SessionState, allowedGroups []string) (bool, error) {
+func (p *SSOProvider) RefreshSession(s *SessionState, allowedGroups []string, allowedEmails []string) (bool, error) {
 	logger := log.NewLogEntry()
 
 	if s.RefreshToken == "" {
@@ -264,6 +283,11 @@ func (p *SSOProvider) RefreshSession(s *SessionState, allowedGroups []string) (b
 		return false, errors.New("Group membership revoked")
 	}
 	s.Groups = inGroups
+
+	validEmail, err := p.ValidateEmail(s.Email, allowedEmails)
+	if !validEmail {
+		return false, errors.New("Email whitelist revoked")
+	}
 
 	s.AccessToken = newToken
 	s.RefreshDeadline = extendDeadline(duration)
@@ -317,8 +341,8 @@ func (p *SSOProvider) redeemRefreshToken(refreshToken string) (token string, exp
 	return
 }
 
-// ValidateSessionState takes a sessionState and allowedGroups and validates the session state
-func (p *SSOProvider) ValidateSessionState(s *SessionState, allowedGroups []string) bool {
+// ValidateSessionState takes a sessionState, allowedGroups, and allowedEmails and validates the session state
+func (p *SSOProvider) ValidateSessionState(s *SessionState, allowedGroups []string, allowedEmails []string) bool {
 	logger := log.NewLogEntry()
 
 	// we validate the user's access token is valid
@@ -376,6 +400,12 @@ func (p *SSOProvider) ValidateSessionState(s *SessionState, allowedGroups []stri
 	}
 	s.Groups = inGroups
 
+	validEmail, err := p.ValidateEmail(s.Email, allowedEmails)
+	if !validEmail {
+		logger.WithUser(s.Email).WithAllowedEmails(allowedEmails).Info(
+			"user is no longer in valid emails")
+		return false
+	}
 	s.ValidDeadline = extendDeadline(p.SessionValidTTL)
 	s.GracePeriodStart = time.Time{}
 

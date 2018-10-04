@@ -825,6 +825,7 @@ func (p *OAuthProxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	allowedGroups := route.upstreamConfig.AllowedGroups
+	allowedEmails := route.upstreamConfig.AllowedEmails
 
 	inGroups, validGroup, err := p.provider.ValidateGroup(session.Email, allowedGroups)
 	if err != nil {
@@ -841,6 +842,15 @@ func (p *OAuthProxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 		logger.WithRemoteAddress(remoteAddr).WithUser(session.Email).WithAllowedGroups(
 			allowedGroups).Info("permission denied: unauthorized")
 		p.ErrorPage(rw, req, http.StatusForbidden, "Permission Denied", "Group membership required")
+		return
+	}
+	validEmail, _ := p.provider.ValidateEmail(session.Email, allowedEmails)
+	if !validEmail {
+		tags = append(tags, "error:unauthorized_email")
+		p.StatsdClient.Incr("provider_error", tags, 1.0)
+		logger.WithRemoteAddress(remoteAddr).WithUser(session.Email).WithAllowedEmails(
+			allowedEmails).Info("permission denied: unauthorized")
+		p.ErrorPage(rw, req, http.StatusForbidden, "Permission Denied", "Valid email required")
 		return
 	}
 	logger.WithRemoteAddress(remoteAddr).WithUser(session.Email).WithInGroups(inGroups).Info(
@@ -951,6 +961,7 @@ func (p *OAuthProxy) Authenticate(rw http.ResponseWriter, req *http.Request) (er
 		return ErrUnknownHost
 	}
 	allowedGroups := route.upstreamConfig.AllowedGroups
+	allowedEmails := route.upstreamConfig.AllowedEmails
 
 	// Clear the session cookie if anything goes wrong.
 	defer func() {
@@ -976,7 +987,7 @@ func (p *OAuthProxy) Authenticate(rw http.ResponseWriter, req *http.Request) (er
 	} else if session.RefreshPeriodExpired() {
 		// Refresh period is the period in which the access token is valid. This is ultimately
 		// controlled by the upstream provider and tends to be around 1 hour.
-		ok, err := p.provider.RefreshSession(session, allowedGroups)
+		ok, err := p.provider.RefreshSession(session, allowedGroups, allowedEmails)
 
 		// We failed to refresh the session successfully
 		// clear the cookie and reject the request
@@ -1008,7 +1019,7 @@ func (p *OAuthProxy) Authenticate(rw http.ResponseWriter, req *http.Request) (er
 		// check for valid requests. This should be set to something like a minute.
 		// This calls up the provider chain to validate this user is still active
 		// and hasn't been de-authorized.
-		ok := p.provider.ValidateSessionState(session, allowedGroups)
+		ok := p.provider.ValidateSessionState(session, allowedGroups, allowedEmails)
 		if !ok {
 			// This user is now no longer authorized, or we failed to
 			// validate the user.

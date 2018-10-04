@@ -84,6 +84,11 @@ func (l *LogEntry) WithAllowedGroups(groups []string) *LogEntry {
 	return l.withField("allowed_groups", groups)
 }
 
+// WithAllowedEmails appends an `allowed_emails` tag to a LogEntry.
+func (l *LogEntry) WithAllowedEmails(emails []string) *LogEntry {
+	return l.withField("allowed_emails", emails)
+}
+
 // WithBackoffDuration appends a `backoff_duration` tag to a LogEntry.
 func (l *LogEntry) WithBackoffDuration(resetDuration time.Duration) *LogEntry {
 	return l.withField("backoff_duration", resetDuration)

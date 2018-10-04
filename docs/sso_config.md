@@ -15,6 +15,9 @@ For example, the following config would have the following environment variables
       allowed_groups:
         - sso-test-group-1@example.com
         - sso-test-group-2@example.com
+      allowed_emails:
+        - user-1@example.com
+        - user-2@example.com
       skip_auth_regex:
         - ^\/github-webhook\/$
       header_overrides:
@@ -31,6 +34,7 @@ For example, the following config would have the following environment variables
   * **type** declares the type of route to use, right now there is just *simple* and *rewrite*.
   * **options** are a set of options that can be added to your configuration.
     * **allowed groups** optional list of authorized google groups that can access the service. If not specified, anyone within an email domain is allowed to access the service.
+    * **allowed emails** optional list of authorized google email addresses that can access the service. If not specified, no filter to whom is allowed is added.
     * **skip_auth_regex** skips authentication for paths matching these regular expressions. NOTE: Use with extreme caution.
     * **header_overrides** overrides any heads set either by SSO proxy itself or upstream applications. Useful for modifying browser security headers.
     * **timeout** sets the amount of time that SSO Proxy will wait for the upstream to complete its request.

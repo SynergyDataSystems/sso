@@ -473,7 +473,7 @@ func (tp *TestProvider) GetEmailAddress(session *providers.SessionState) (string
 	return tp.EmailAddress, nil
 }
 
-func (tp *TestProvider) ValidateSessionState(session *providers.SessionState, g []string) bool {
+func (tp *TestProvider) ValidateSessionState(session *providers.SessionState, g []string, e []string) bool {
 	return tp.ValidToken
 }
 
@@ -1100,16 +1100,16 @@ func TestHeadersSentToUpstreams(t *testing.T) {
 
 type testAuthenticateProvider struct {
 	*providers.ProviderData
-	refreshSessionFunc  func(*providers.SessionState, []string) (bool, error)
-	validateSessionFunc func(*providers.SessionState, []string) bool
+	refreshSessionFunc  func(*providers.SessionState, []string, []string) (bool, error)
+	validateSessionFunc func(*providers.SessionState, []string, []string) bool
 }
 
-func (tap *testAuthenticateProvider) RefreshSession(s *providers.SessionState, g []string) (bool, error) {
-	return tap.refreshSessionFunc(s, g)
+func (tap *testAuthenticateProvider) RefreshSession(s *providers.SessionState, g []string, e []string) (bool, error) {
+	return tap.refreshSessionFunc(s, g, e)
 }
 
-func (tap *testAuthenticateProvider) ValidateSessionState(s *providers.SessionState, g []string) bool {
-	return tap.validateSessionFunc(s, g)
+func (tap *testAuthenticateProvider) ValidateSessionState(s *providers.SessionState, g []string, e []string) bool {
+	return tap.validateSessionFunc(s, g, e)
 }
 
 func TestAuthenticate(t *testing.T) {
@@ -1128,8 +1128,8 @@ func TestAuthenticate(t *testing.T) {
 		Session             *providers.SessionState
 		ExpectedErr         error
 		CookieExpectation   int // One of: {NewCookie, ClearCookie, KeepCookie}
-		RefreshSessionFunc  func(*providers.SessionState, []string) (bool, error)
-		ValidateSessionFunc func(*providers.SessionState, []string) bool
+		RefreshSessionFunc  func(*providers.SessionState, []string, []string) (bool, error)
+		ValidateSessionFunc func(*providers.SessionState, []string, []string) bool
 		Cipher              aead.Cipher
 	}{
 		{
@@ -1192,7 +1192,7 @@ func TestAuthenticate(t *testing.T) {
 			},
 			ExpectedErr:        ErrRefreshFailed,
 			CookieExpectation:  ClearCookie,
-			RefreshSessionFunc: func(s *providers.SessionState, g []string) (bool, error) { return false, ErrRefreshFailed },
+			RefreshSessionFunc: func(s *providers.SessionState, g []string, e []string) (bool, error) { return false, ErrRefreshFailed },
 		},
 		{
 			Name: "refresh expired, user not OK, do not authenticate",
@@ -1205,7 +1205,7 @@ func TestAuthenticate(t *testing.T) {
 			},
 			ExpectedErr:        ErrUserNotAuthorized,
 			CookieExpectation:  ClearCookie,
-			RefreshSessionFunc: func(s *providers.SessionState, g []string) (bool, error) { return false, nil },
+			RefreshSessionFunc: func(s *providers.SessionState, g []string, e []string) (bool, error) { return false, nil },
 		},
 		{
 			Name: "refresh expired, user OK, authenticate",
@@ -1218,7 +1218,7 @@ func TestAuthenticate(t *testing.T) {
 			},
 			ExpectedErr:        nil,
 			CookieExpectation:  NewCookie,
-			RefreshSessionFunc: func(s *providers.SessionState, g []string) (bool, error) { return true, nil },
+			RefreshSessionFunc: func(s *providers.SessionState, g []string, e []string) (bool, error) { return true, nil },
 		},
 		{
 			Name: "validation expired, user not OK, do not authenticate",
@@ -1231,7 +1231,7 @@ func TestAuthenticate(t *testing.T) {
 			},
 			ExpectedErr:         ErrUserNotAuthorized,
 			CookieExpectation:   ClearCookie,
-			ValidateSessionFunc: func(s *providers.SessionState, g []string) bool { return false },
+			ValidateSessionFunc: func(s *providers.SessionState, g []string, e []string) bool { return false },
 		},
 		{
 			Name: "validation expired, user OK, authenticate",
@@ -1244,7 +1244,7 @@ func TestAuthenticate(t *testing.T) {
 			},
 			ExpectedErr:         nil,
 			CookieExpectation:   NewCookie,
-			ValidateSessionFunc: func(s *providers.SessionState, g []string) bool { return true },
+			ValidateSessionFunc: func(s *providers.SessionState, g []string, e []string) bool { return true },
 		},
 	}
 	for _, tc := range testCases {

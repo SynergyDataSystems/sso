@@ -52,6 +52,7 @@ type UpstreamConfig struct {
 
 	SkipAuthCompiledRegex []*regexp.Regexp
 	AllowedGroups         []string
+	AllowedEmails         []string
 	TLSSkipVerify         bool
 	HMACAuth              hmacauth.HmacAuth
 	Timeout               time.Duration
@@ -80,6 +81,7 @@ type OptionsConfig struct {
 	HeaderOverrides map[string]string `yaml:"header_overrides"`
 	SkipAuthRegex   []string          `yaml:"skip_auth_regex"`
 	AllowedGroups   []string          `yaml:"allowed_groups"`
+	AllowedEmails   []string          `yaml:"allowed_emails"`
 	TLSSkipVerify   bool              `yaml:"tls_skip_verify"`
 	Timeout         time.Duration     `yaml:"timeout"`
 	FlushInterval   time.Duration     `yaml:"flush_interval"`
@@ -361,6 +363,7 @@ func parseOptionsConfig(proxy *UpstreamConfig) error {
 	}
 
 	proxy.AllowedGroups = proxy.RouteConfig.Options.AllowedGroups
+	proxy.AllowedEmails = proxy.RouteConfig.Options.AllowedEmails
 	proxy.Timeout = proxy.RouteConfig.Options.Timeout
 	proxy.FlushInterval = proxy.RouteConfig.Options.FlushInterval
 	proxy.HeaderOverrides = proxy.RouteConfig.Options.HeaderOverrides

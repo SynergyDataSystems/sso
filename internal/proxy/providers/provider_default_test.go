@@ -13,6 +13,7 @@ func TestRefresh(t *testing.T) {
 		RefreshDeadline: time.Now().Add(time.Duration(-11) * time.Minute),
 	},
 		[]string{},
+		[]string{},
 	)
 	testutil.Equal(t, false, refreshed)
 	testutil.Equal(t, nil, err)

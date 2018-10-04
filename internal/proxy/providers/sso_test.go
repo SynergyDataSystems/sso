@@ -118,6 +118,56 @@ type profileResponse struct {
 	Groups []string `json:"groups"`
 }
 
+func TestSSOProviderEmails(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		Email         string
+		Emails        []string
+		ExpectedValid bool
+		ExpectError   error
+		ProfileStatus int
+	}{
+		{
+			Name:          "valid when no emails set",
+			Email:         "michael.bland@gsa.gov",
+			Emails:        []string{},
+			ExpectedValid: true,
+			ExpectError:   nil,
+		},
+		{
+			Name:          "valid when the email in list",
+			Email:         "michael.test@gsa.gov",
+			Emails:        []string{"michael.test@gsa.gov"},
+			ExpectedValid: true,
+			ExpectError:   nil,
+		},
+		{
+			Name:          "valid when the email in multiple list",
+			Email:         "michael.test@gsa.gov",
+			Emails:        []string{"michael.test@gsa.gov", "michael.other@gsa.gov"},
+			ExpectedValid: true,
+			ExpectError:   nil,
+		},
+		{
+			Name:          "invalid when the email not in list",
+			Email:         "michael.test@gsa.gov",
+			Emails:        []string{"michael.other@gsa.gov"},
+			ExpectedValid: false,
+			ExpectError:   nil,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			p := newSSOProvider()
+			valid, err := p.ValidateEmail(tc.Email, tc.Emails)
+			testutil.Equal(t, tc.ExpectError, err)
+			if err == nil {
+				testutil.Equal(t, tc.ExpectedValid, valid)
+			}
+		})
+	}
+}
+
 func TestSSOProviderGroups(t *testing.T) {
 	testCases := []struct {
 		Name             string
@@ -278,6 +328,7 @@ func TestSSOProviderValidateSessionState(t *testing.T) {
 		ProviderResponse int
 		Groups           []string
 		ProxyGroupIds    []string
+		ProxyEmails      []string
 		ExpectedValid    bool
 	}{
 		{
@@ -340,6 +391,26 @@ func TestSSOProviderValidateSessionState(t *testing.T) {
 			ProviderResponse: http.StatusServiceUnavailable,
 			ExpectedValid:    false,
 		},
+		{
+			Name: "valid when the email exists in list",
+			SessionState: &SessionState{
+				AccessToken: "abc",
+				Email:       "michael.bland@gsa.gov",
+			},
+			ProviderResponse: http.StatusOK,
+			ProxyEmails:      []string{"michael.bland@gsa.gov"},
+			ExpectedValid:    true,
+		},
+		{
+			Name: "invalid when the email isn't in list",
+			SessionState: &SessionState{
+				AccessToken: "abc",
+				Email:       "michael.bland@gsa.gov",
+			},
+			ProviderResponse: http.StatusOK,
+			ProxyEmails:      []string{"no-one@gsa.gov"},
+			ExpectedValid:    false,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -368,7 +439,7 @@ func TestSSOProviderValidateSessionState(t *testing.T) {
 			p.ValidateURL, _ = url.Parse(validateServer.URL)
 			defer validateServer.Close()
 
-			valid := p.ValidateSessionState(tc.SessionState, tc.ProxyGroupIds)
+			valid := p.ValidateSessionState(tc.SessionState, tc.ProxyGroupIds, tc.ProxyEmails)
 			if valid != tc.ExpectedValid {
 				t.Errorf("got unexpected result. want=%v got=%v", tc.ExpectedValid, valid)
 			}
@@ -382,6 +453,7 @@ func TestSSOProviderRefreshSession(t *testing.T) {
 		SessionState    *SessionState
 		UserGroups      []string
 		ProxyGroups     []string
+		ProxyEmails     []string
 		RefreshResponse *refreshResponse
 		ExpectedRefresh bool
 		ExpectedError   string
@@ -478,6 +550,38 @@ func TestSSOProviderRefreshSession(t *testing.T) {
 			ExpectedRefresh: true,
 		},
 		{
+			Name: "successful refresh if can redeem and user in emails",
+			SessionState: &SessionState{
+				Email:           "user@domain.com",
+				AccessToken:     "token1234",
+				RefreshDeadline: time.Now().Add(time.Duration(-1) * time.Hour),
+				RefreshToken:    "refresh1234",
+			},
+			ProxyEmails: []string{"user@domain.com"},
+			RefreshResponse: &refreshResponse{
+				Code:        http.StatusCreated,
+				ExpiresIn:   10,
+				AccessToken: "newToken1234",
+			},
+			ExpectedRefresh: true,
+		},
+		{
+			Name: "no refresh if can redeem and user not in emails",
+			SessionState: &SessionState{
+				Email:           "user@domain.com",
+				AccessToken:     "token1234",
+				RefreshDeadline: time.Now().Add(time.Duration(-1) * time.Hour),
+				RefreshToken:    "refresh1234",
+			},
+			ProxyEmails: []string{"other-user@domain.com"},
+			RefreshResponse: &refreshResponse{
+				Code:        http.StatusCreated,
+				ExpiresIn:   10,
+				AccessToken: "newToken1234",
+			},
+			ExpectedRefresh: false,
+		},
+		{
 			Name: "successful refresh if provider unavailable but within grace period",
 			SessionState: &SessionState{
 				GracePeriodStart: time.Now().Add(time.Duration(-1) * time.Hour),
@@ -511,6 +615,11 @@ func TestSSOProviderRefreshSession(t *testing.T) {
 				groups = tc.ProxyGroups
 			}
 
+			emails := []string{}
+			if tc.ProxyEmails != nil {
+				emails = tc.ProxyEmails
+			}
+
 			// set up redeem resource
 			var refreshServer *httptest.Server
 			body, err := json.Marshal(tc.RefreshResponse)
@@ -533,7 +642,7 @@ func TestSSOProviderRefreshSession(t *testing.T) {
 			defer groupsServer.Close()
 
 			// run the endpoint
-			actualRefresh, err := p.RefreshSession(tc.SessionState, groups)
+			actualRefresh, err := p.RefreshSession(tc.SessionState, groups, emails)
 			if tc.ExpectedRefresh != actualRefresh {
 				t.Fatalf("got unexpected refresh behavior. want=%v got=%v", tc.ExpectedRefresh, actualRefresh)
 			}

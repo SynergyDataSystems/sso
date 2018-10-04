@@ -20,7 +20,7 @@ func (tp *ValidateSessionStateTestProvider) GetEmailAddress(s *SessionState) (st
 
 // Note that we're testing the internal validateToken() used to implement
 // several Provider's ValidateSessionState() implementations
-func (tp *ValidateSessionStateTestProvider) ValidateSessionState(s *SessionState, g []string) bool {
+func (tp *ValidateSessionStateTestProvider) ValidateSessionState(s *SessionState, g []string, e []string) bool {
 	return false
 }
 
